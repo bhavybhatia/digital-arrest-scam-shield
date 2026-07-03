@@ -4,7 +4,7 @@ import queue
 import threading
 import numpy as np
 import pyaudio
-from faster_whisper import WhisperModel
+import whisper
 from docx import Document
 from datetime import datetime
 
@@ -74,9 +74,8 @@ def transcribe_audio(model):
             continue
 
         audio_np = audio_np / (np.max(np.abs(audio_np)) + 1e-9) * 0.9
-
-        segments, _ = model.transcribe(audio_np, beam_size=1, language="en")
-        text = " ".join(seg.text.strip() for seg in segments)
+        result = model.transcribe(audio_np, language="en", fp16=False)
+        text = result["text"].strip()
 
         if text:
             print(f"[{timestamp}] >> {text}")
@@ -87,28 +86,29 @@ def transcribe_audio(model):
             print(f"[{timestamp}] No speech detected in chunk.")
 
 
-# Step 1: Check / create docx
-init_doc()
+if __name__ == "__main__":
+    # Step 1: Check / create docx
+    init_doc()
 
-# Load model
-print("\nLoading faster-whisper model (base, int8)...")
-model = WhisperModel("base", device="cpu", compute_type="int8")
+    # Load model
+    print("\nLoading Whisper model (tiny)...")
+    model = whisper.load_model("tiny")
 
-print("\nLive transcription started. Speak freely. Press Ctrl+C to stop.\n")
+    print("\nLive transcription started. Speak freely. Press Ctrl+C to stop.\n")
 
-recorder = threading.Thread(target=record_audio, daemon=True)
-transcriber = threading.Thread(target=transcribe_audio, args=(model,), daemon=True)
+    recorder = threading.Thread(target=record_audio, daemon=True)
+    transcriber = threading.Thread(target=transcribe_audio, args=(model,), daemon=True)
 
-recorder.start()
-transcriber.start()
+    recorder.start()
+    transcriber.start()
 
-try:
-    while recorder.is_alive():
-        recorder.join(timeout=0.5)
-except KeyboardInterrupt:
-    print("\nStopping... finishing pending transcriptions.")
-    stop_event.set()
+    try:
+        while recorder.is_alive():
+            recorder.join(timeout=0.5)
+    except KeyboardInterrupt:
+        print("\nStopping... finishing pending transcriptions.")
+        stop_event.set()
 
-recorder.join()
-transcriber.join()
-print(f"\nDone. All transcripts saved to {OUTPUT_PATH}")
+    recorder.join()
+    transcriber.join()
+    print(f"\nDone. All transcripts saved to {OUTPUT_PATH}")
