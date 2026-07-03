@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from scam_analyser import scam_detector
 
 
 app = FastAPI()
@@ -16,9 +17,8 @@ def read_root():
 @app.get("/items/{item_id}")
 def read_item(item_id: int):
     print("Model Initialised...")
-    from scam_analyser import scam_detector
-    scam_detector()
-    return {"item_id": item_id, "status": "Available"}
+    result = scam_detector()
+    return {"item_id": item_id, "status": result}
 
 @app.post("/items/")
 def create_item(item: Item):
