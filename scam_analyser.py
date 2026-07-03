@@ -1,9 +1,12 @@
 import time
 from transformers import pipeline
+import json
 import warnings
 
 # Suppress minor huggingface warnings for cleaner console output
 warnings.filterwarnings("ignore")
+
+result = {}
 
 class ModernBERTScamAnalyzer:
     """Stateful context analyzer using only ModernBERT for hyper-sensitive detection."""
@@ -98,20 +101,30 @@ def scam_detector():
         print(f"\n⏱️ [Time Loop +{(index * 10)}s] Incoming Chunk:\n   \"{chunk}\"")
         
         # Process the chunk and get the score and top label
-    score, top_label = analyzer.process_chunk(chunk)
+        score, top_label = analyzer.process_chunk(chunk)
     
-    if score > 75:
-        status = "🔴 CRITICAL RISK"
-    elif score > 40:
-        status = "🟡 WARNING"
-    else:
-        status = "🟢 LOW RISK"
+        if score > 75:
+            status = "🔴 CRITICAL RISK"
+        elif score > 40:
+            status = "🟡 WARNING"
+        else:
+            status = "🟢 LOW RISK"
+
+        result.update({
+            chunk:{
+            'ModernBERT Score': score,
+            'Top Detected Intent': top_label,
+            'status': status
+            }   
+        })
         
-    print("-" * 50)
-    print(f"   ModernBERT Score: {score} / 100")
-    print(f"   Top Detected Intent: '{top_label}'")
-    print(f"   ► OVERALL STATUS: {status}")
-    print("═" * 90)
+        print("-" * 50)
+        print(f"   ModernBERT Score: {score} / 100")
+        print(f"   Top Detected Intent: '{top_label}'")
+        print(f"   ► OVERALL STATUS: {status}")
+        print("═" * 90)
+
+    return result
     
     # Brief pause to simulate network stream
     time.sleep(1)
