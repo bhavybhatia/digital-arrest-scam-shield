@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from scam_analyser import scam_detector
+from digital_scam_shield import scam_detector
 
 
 app = FastAPI()
+
+token = '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'
 
 # Model for our POST request data
 class Item(BaseModel):
@@ -14,11 +16,11 @@ class Item(BaseModel):
 def read_root():
     return {"message": "Welcome to the FastAPI app on Render!"}
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int):
+@app.get("/ScamDetection/")
+def read_item():
     print("Model Initialised...")
     result = scam_detector()
-    return {"item_id": item_id, "status": result}
+    return {"status": result}
 
 @app.post("/items/")
 def create_item(item: Item):
