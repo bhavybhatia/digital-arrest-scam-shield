@@ -7,6 +7,7 @@ from openai import OpenAI
 # Suppress minor warnings for cleaner console output
 warnings.filterwarnings("ignore")
 
+
 result = {}
 
 class RouterScamAnalyzer:
@@ -84,19 +85,20 @@ class RouterScamAnalyzer:
             
         return round(self.running_score, 2), top_label
 
+HF_TOKEN = "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" 
+analyzer = RouterScamAnalyzer(hf_token=HF_TOKEN)
+
 
 # ==========================================
 # MAIN EXECUTION 
 # ==========================================
-def scam_detector():
+def scam_detector(chunk):
     # Replace with your actual Hugging Face Access Token
-    HF_TOKEN = "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" 
     
     print("\n" + "="*70)
     print("INITIALIZING LLM (Hugging Face Router API Mode)")
     print("="*70)
     
-    analyzer = RouterScamAnalyzer(hf_token=HF_TOKEN)
 
     # live_call_stream = [
     #     "Hello, am I speaking with Mr. Raghav Ahuja? Sir, your phone number has been linked to an illegal activity.",
@@ -109,51 +111,51 @@ def scam_detector():
     #     "Hello, this is Inspector Deshmukh from the local station. We traced this call. Please disconnect immediately, this is a scam."
     # ]
 
-    live_call_stream = [
-    # --- Phase 1: Normal & Safe Conversation ---
-    "Hello Mr. Raghav, this is Priya calling from Global Logistics. Your delivery courier is outside your gate.",
-    "Could you please confirm if there is someone available at home to collect the parcel right now?",
-    "Perfect, I will hand it over to the security guard at the main gate desk. Have a wonderful day ahead!",
+    # live_call_stream = [
+    # # --- Phase 1: Normal & Safe Conversation ---
+    # "Hello Mr. Raghav, this is Priya calling from Global Logistics. Your delivery courier is outside your gate.",
+    # "Could you please confirm if there is someone available at home to collect the parcel right now?",
+    # "Perfect, I will hand it over to the security guard at the main gate desk. Have a wonderful day ahead!",
     
-    # --- Phase 2: Shift to an Online Money / Job Scam ---
-    "Hello, is this Raghav? I am reaching out from Global HR Solutions regarding an exciting part-time remote work offer.",
-    "You can easily earn up to 5,000 Rupees daily simply by liking YouTube videos and completing quick social tasks from home.",
-    "To activate your employee account and release your initial sign-up bonus, please click this link to register.",
-    "To unlock premium high-paying tasks, you must send a small security deposit to our digital verification wallet immediately.",
-    "The remaining slots are filling up fast. Transfer the deposit right now and send the transaction screenshot to start earning."
-    ]
+    # # --- Phase 2: Shift to an Online Money / Job Scam ---
+    # "Hello, is this Raghav? I am reaching out from Global HR Solutions regarding an exciting part-time remote work offer.",
+    # "You can easily earn up to 5,000 Rupees daily simply by liking YouTube videos and completing quick social tasks from home.",
+    # "To activate your employee account and release your initial sign-up bonus, please click this link to register.",
+    # "To unlock premium high-paying tasks, you must send a small security deposit to our digital verification wallet immediately.",
+    # "The remaining slots are filling up fast. Transfer the deposit right now and send the transaction screenshot to start earning."
+    # ]
 
     print("\n" + "═"*90)
     print("🚨 STARTING ITERATIVE LIVE STREAM (ROUTER API MODE)")
     print("═"*90)
 
-    for index, chunk in enumerate(live_call_stream, start=1):
-        print(f"\n⏱️ [Time Loop +{(index * 10)}s] Incoming Chunk:\n   \"{chunk}\"")
+    # for index, chunk in enumerate(live_call_stream, start=1):
+    #     print(f"\n⏱️ [Time Loop +{(index * 10)}s] Incoming Chunk:\n   \"{chunk}\"")
         
-        score, top_label = analyzer.process_chunk(chunk)
-    
-        if score > 75:
-            status = "🔴 CRITICAL RISK"
-        elif score > 40:
-            status = "🟡 WARNING"
-        else:
-            status = "🟢 LOW RISK"
+    score, top_label = analyzer.process_chunk(chunk)
 
-        result.update({
-            chunk:{
-                'Score': score,
-                'Top Detected Intent': top_label,
-                'status': status
-            }   
-        })
-        
-        print("-" * 50)
-        print(f"   Risk Score: {score} / 100")
-        print(f"   Top Detected Intent: '{top_label}'")
-        print(f"   ► OVERALL STATUS: {status}")
-        print("═" * 90)
-        
-        time.sleep(1)
+    if score > 75:
+        status = "🔴 CRITICAL RISK"
+    elif score > 40:
+        status = "🟡 WARNING"
+    else:
+        status = "🟢 LOW RISK"
+
+    result.update({
+        chunk:{
+            'Score': score,
+            'Top Detected Intent': top_label,
+            'status': status
+        }   
+    })
+    
+    print("-" * 50)
+    print(f"   Risk Score: {score} / 100")
+    print(f"   Top Detected Intent: '{top_label}'")
+    print(f"   ► OVERALL STATUS: {status}")
+    print("═" * 90)
+    
+    time.sleep(1)
 
     return result
 
