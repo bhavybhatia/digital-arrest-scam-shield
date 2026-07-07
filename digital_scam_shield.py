@@ -92,7 +92,7 @@ analyzer = RouterScamAnalyzer(hf_token=HF_TOKEN)
 # ==========================================
 # MAIN EXECUTION 
 # ==========================================
-def scam_detector(chunk):
+def scam_detector():
     # Replace with your actual Hugging Face Access Token
     
     print("\n" + "="*70)
@@ -100,16 +100,16 @@ def scam_detector(chunk):
     print("="*70)
     
 
-    # live_call_stream = [
-    #     "Hello, am I speaking with Mr. Raghav Ahuja? Sir, your phone number has been linked to an illegal activity.",
-    #     "A package containing 5 fake passports and 20 grams of MDMA has been intercepted by Customs in Mumbai.",
-    #     "Your Aadhar card identity was used to open this logistics account. The local police are tracking you right now.",
-    #     "We are transferring this call to the high-ranking officials at the CBI Cyber Crime Branch via a secure room link.",
-    #     "You are now under complete Digital Arrest. Do not disconnect this line, close your doors, or talk to anyone.",
-    #     "To clear your official government records, you must move all funds to the RBI public verification bank account immediately.",
-    #     "Okay, fine. I am waiting for your bank transfer conformation confirmation text. Do it quickly.",
-    #     "Hello, this is Inspector Deshmukh from the local station. We traced this call. Please disconnect immediately, this is a scam."
-    # ]
+    live_call_stream = [
+        "Hello, am I speaking with Mr. Raghav Ahuja? Sir, your phone number has been linked to an illegal activity.",
+        "A package containing 5 fake passports and 20 grams of MDMA has been intercepted by Customs in Mumbai.",
+        "Your Aadhar card identity was used to open this logistics account. The local police are tracking you right now.",
+        "We are transferring this call to the high-ranking officials at the CBI Cyber Crime Branch via a secure room link.",
+        "You are now under complete Digital Arrest. Do not disconnect this line, close your doors, or talk to anyone.",
+        "To clear your official government records, you must move all funds to the RBI public verification bank account immediately.",
+        "Okay, fine. I am waiting for your bank transfer conformation confirmation text. Do it quickly.",
+        "Hello, this is Inspector Deshmukh from the local station. We traced this call. Please disconnect immediately, this is a scam."
+    ]
 
     # live_call_stream = [
     # # --- Phase 1: Normal & Safe Conversation ---
@@ -129,33 +129,33 @@ def scam_detector(chunk):
     print("🚨 STARTING ITERATIVE LIVE STREAM (ROUTER API MODE)")
     print("═"*90)
 
-    # for index, chunk in enumerate(live_call_stream, start=1):
-    #     print(f"\n⏱️ [Time Loop +{(index * 10)}s] Incoming Chunk:\n   \"{chunk}\"")
+    for index, chunk in enumerate(live_call_stream, start=1):
+        print(f"\n⏱️ [Time Loop +{(index * 10)}s] Incoming Chunk:\n   \"{chunk}\"")
         
-    score, top_label = analyzer.process_chunk(chunk)
+        score, top_label = analyzer.process_chunk(chunk)
 
-    if score > 75:
-        status = "🔴 CRITICAL RISK"
-    elif score > 40:
-        status = "🟡 WARNING"
-    else:
-        status = "🟢 LOW RISK"
+        if score > 75:
+            status = "🔴 CRITICAL RISK"
+        elif score > 40:
+            status = "🟡 WARNING"
+        else:
+            status = "🟢 LOW RISK"
 
-    result.update({
-        chunk:{
-            'Score': score,
-            'Top Detected Intent': top_label,
-            'status': status
-        }   
-    })
+        result.update({
+            chunk:{
+                'Score': score,
+                'Top Detected Intent': top_label,
+                'status': status
+            }   
+        })
+        
+        print("-" * 50)
+        print(f"   Risk Score: {score} / 100")
+        print(f"   Top Detected Intent: '{top_label}'")
+        print(f"   ► OVERALL STATUS: {status}")
+        print("═" * 90)
     
-    print("-" * 50)
-    print(f"   Risk Score: {score} / 100")
-    print(f"   Top Detected Intent: '{top_label}'")
-    print(f"   ► OVERALL STATUS: {status}")
-    print("═" * 90)
-    
-    time.sleep(1)
+        time.sleep(1)
 
     return result
 
