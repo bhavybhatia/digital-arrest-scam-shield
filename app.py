@@ -6,8 +6,6 @@ from scam_analyser import scam_detector
 
 app = FastAPI()
 
-token = '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'
-
 # Model for our POST request data
 class Item(BaseModel):
     name: str
