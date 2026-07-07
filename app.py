@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from digital_scam_shield import scam_detector
+# from digital_scam_shield import scam_detector
+from scam_analyser import scam_detector
 
 
 app = FastAPI()
