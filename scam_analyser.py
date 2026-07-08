@@ -71,14 +71,16 @@ class ModernBERTScamAnalyzer:
             
         return round(self.running_score, 2), result['labels'][0]
 
-analyzer = ModernBERTScamAnalyzer()
+
 # ==========================================
 # MAIN EXECUTION 
 # ==========================================
-def scam_detector():
+def main():
     print("\n" + "="*70)
     print("INITIALIZING MODERNBERT (Highly Sensitive Configuration)")
     print("="*70)
+
+    analyzer = ModernBERTScamAnalyzer()
     
 
     live_call_stream = [

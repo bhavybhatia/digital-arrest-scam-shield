@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from digital_scam_shield import scam_detector
+# from scam_shield_with_api import analyzer
+from scam_analyser import main
 
 app = FastAPI()
 
@@ -17,6 +19,12 @@ def read_root():
 def read_item():
     print("Model Initialised...")
     result = scam_detector()
+    return {"status": result}
+
+@app.get("/ModelTest/")
+def read_item():
+    print("Model Initialised...")
+    result = main()
     return {"status": result}
 
 @app.post("/items/")
