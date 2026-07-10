@@ -1,0 +1,15 @@
+{
+  "name": "caller-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch-path=index.js index.js",
+    "build": "npm run build --prefix ../client",
+    "start": "node index.js --prod"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "vite": "^5.4.1"
+  }
+}
