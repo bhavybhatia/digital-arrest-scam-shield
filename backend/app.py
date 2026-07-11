@@ -46,13 +46,13 @@ from digital_scam_shield import scam_detector, preload as preload_scam_model  # 
 import whisper  # noqa: E402
 
 app = Flask(__name__)
-# caller (frontend/caller/server, port 4001) and receiver
-# (frontend/receiver/server, port 4002) are the only clients of this API.
+# caller/client (Vite dev, port 5173) and receiver/client (Vite dev, port
+# 5174) call this API directly — there is no Node proxy layer in between.
 CORS(app, origins=[
-    "http://localhost:4001",
-    "http://127.0.0.1:4001",
-    "http://localhost:4002",
-    "http://127.0.0.1:4002",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 ])
 
 # ---------------------------------------------------------------------------
