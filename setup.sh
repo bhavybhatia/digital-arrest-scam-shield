@@ -5,10 +5,10 @@ set -e  # exit immediately if any setup command fails
 trap 'echo ""; echo "Stopping all services..."; kill $(jobs -p) 2>/dev/null' EXIT INT TERM
 
 # --- 1. Python virtual environment ---
-python3 -m venv scam_shield_env
-source scam_shield_env/bin/activate
+# python3 -m venv scam_shield_env
+# source scam_shield_env/bin/activate
 
-pip install -r requirements.txt
+# pip install -r requirements.txt
 
 # --- 2. Backend (runs in background, otherwise the script hangs here forever) ---
 cd backend
