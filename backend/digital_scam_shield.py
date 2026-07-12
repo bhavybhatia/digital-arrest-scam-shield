@@ -13,7 +13,7 @@ class RouterScamAnalyzer:
 
     def __init__(self, hf_token, alpha=0.7, max_buffer_words=500):
         # Using a fast, instruction-tuned LLM available on the HF Router
-        self.model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
+        self.model_id = "meta-llama/Llama-3.1-8B-Instruct"
 
         # Initialize the standard OpenAI client but point it to Hugging Face
         self.client = OpenAI(
