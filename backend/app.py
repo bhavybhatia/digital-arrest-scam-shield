@@ -49,8 +49,10 @@ app = Flask(__name__)
 # caller/client (Vite dev, port 5173) and receiver/client (Vite dev, port
 # 5174) call this API directly — there is no Node proxy layer in between.
 CORS(app, origins=[
-    "http://34.74.48.63:5173/",
-    "http://34.74.48.63:5174/"
+    re.compile(r"^http?://.*:5173$"),
+    re.compile(r"^http?://.*:5174$"),
+    re.compile(r"^http?://.*:5175$"),
+    re.compile(r"^http?://.*:5176$"),
 ])
 
 # ---------------------------------------------------------------------------
