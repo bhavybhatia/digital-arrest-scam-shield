@@ -11,7 +11,7 @@ Both React screens (caller_ui, receiver_ui) are thin polling clients of
 this API. They contain no state-machine logic, no scoring logic, and no
 knowledge of Whisper / ModernBERT.
 """
-
+import re
 import os
 import sys
 import threading
@@ -49,10 +49,10 @@ app = Flask(__name__)
 # caller/client (Vite dev, port 5173) and receiver/client (Vite dev, port
 # 5174) call this API directly — there is no Node proxy layer in between.
 CORS(app, origins=[
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
+    re.compile(r"^http?://.*:5173$"),
+    re.compile(r"^http?://.*:5174$"),
+    re.compile(r"^http?://.*:5175$"),
+    re.compile(r"^http?://.*:5176$"),
 ])
 
 # ---------------------------------------------------------------------------
