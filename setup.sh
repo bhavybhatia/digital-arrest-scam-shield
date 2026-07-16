@@ -5,8 +5,8 @@ set -e  # exit immediately if any setup command fails
 trap 'echo ""; echo "Stopping all services..."; kill $(jobs -p) 2>/dev/null' EXIT INT TERM
 
 # --- 1. System-level dependencies (needed to build pyaudio's C extension) ---
-sudo apt update
-sudo apt install -y portaudio19-dev python3-dev
+# sudo apt update
+# sudo apt install -y portaudio19-dev python3-dev
 
 # --- 2. Python virtual environment ---
 python3 -m venv scam_shield_env
