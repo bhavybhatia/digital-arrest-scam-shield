@@ -2,7 +2,7 @@
 
 # 🛡️ Digital Arrest Scam Shield
 
-### Real-time AI intelligence that detects a "digital arrest" scam *while the call is still happening* — and stops the transaction before it moves.
+### Real-time AI intelligence that detects a "digital arrest" scam *while the call is still happening* — and stops the money before it moves.
 
 **ET AI Hackathon 2026 · Challenge Track: AI for Digital Public Safety — Defeating Counterfeiting, Fraud & Digital Arrest Scams**
 
@@ -330,23 +330,5 @@ The architecture is deliberately modular (chunk-in → score-out) so the followi
 - **Voice spoofing / deepfake-voice detection** — an additional audio-fingerprint model to catch AI-cloned "officer" voices, a known escalation in digital arrest scripts.
 - **NCRP / Samanvaya live API bridge** — push evidence packets automatically into I4C's national systems instead of the current local `.docx` log, linking straight to FIR workflows.
 - **Multilingual expansion** — Whisper already supports 99 languages; extending candidate-language coverage beyond English/Hindi to Tamil, Telugu, Bengali, Marathi, etc. is a config change, not a new pipeline.
-- **On-device / edge deployment** — quantised Whisper + ModernBERT variants for low-latency, privacy-preserving inference directly on a smartphone, removing the network round-trip entirely.
 - **Federated scam-pattern learning** — aggregate anonymised high-risk transcript patterns across calls nationally to continuously improve the candidate-label set and catch emerging scam scripts faster.
 - **Bank & UPI app plug-in** — a lightweight SDK banks/UPI apps can embed so a live CRITICAL score can trigger an in-app transaction warning at the exact moment a victim opens their banking app mid-call.
-
----
-
-## 12. Known Limitations of This Build
-
-Being transparent about what's simulated vs. production-ready in this hackathon build:
-
-- Audio is captured from the **server's local microphone**, not a real telecom/VoIP call leg — a production deployment needs a genuine carrier-side or SIP media tap.
-- Only **one call session at a time** is supported (in-memory, single-process state) — production needs multi-tenant session handling behind a proper datastore.
-- The Cyber Police Command Centre dashboard shown here is a **static mockup** (`docs/assets/cyber_police_dashboard.png`) illustrating the intended integration, not a live connection to NCRP/Samanvaya.
-- The LLM Router analyzer depends on an external API (`HF_TOKEN` + network access); the ModernBERT analyzer runs fully offline once its weights are downloaded.
-
----
-
-## 13. License
-
-See [`LICENSE`](LICENSE) for full terms.
