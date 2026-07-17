@@ -2,7 +2,7 @@
 
 # 🛡️ Digital Arrest Scam Shield
 
-### Real-time AI intelligence that detects a "digital arrest" scam *while the call is still happening* — and stops the money before it moves.
+### Real-time AI intelligence that detects a "digital arrest" scam *while the call is still happening* — and stops the transaction before it moves.
 
 **ET AI Hackathon 2026 · Challenge Track: AI for Digital Public Safety — Defeating Counterfeiting, Fraud & Digital Arrest Scams**
 
