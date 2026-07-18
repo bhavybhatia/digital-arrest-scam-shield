@@ -1,0 +1,394 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.landing {
+  min-height: 100vh;
+  padding: 32px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.landing-header {
+  max-width: 640px;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.landing-header h1 {
+  font-size: 1.6rem;
+  margin-bottom: 8px;
+}
+
+.landing-header p {
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.landing-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.landing-links a {
+  color: #38bdf8;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.landing-links a:hover {
+  text-decoration: underline;
+}
+
+.landing-phones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  justify-content: center;
+}
+
+/* ---- Phone mockup ---- */
+.phone-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.phone-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.phone-frame {
+  width: 320px;
+  height: 640px;
+  background: #111827;
+  border-radius: 40px;
+  border: 8px solid #1f2937;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.phone-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 20px;
+  background: #1f2937;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+  z-index: 2;
+}
+
+.phone-home-bar {
+  height: 5px;
+  width: 120px;
+  background: #374151;
+  border-radius: 3px;
+  margin: 8px auto 12px;
+}
+
+.phone-screen {
+  flex: 1;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  margin-top: 20px;
+  overflow-y: auto;
+  display: flex;
+}
+
+.phone-app {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px 16px;
+}
+
+.phone-app-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.phone-loading,
+.phone-error {
+  text-align: center;
+  color: #94a3b8;
+  margin-top: 40px;
+}
+
+.phone-error {
+  color: #f87171;
+}
+
+/* ---- Dialpad ---- */
+.dialpad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.dialpad-own-number {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.dialpad-hint {
+  font-size: 0.7rem;
+  color: #475569;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.dialpad-display {
+  font-size: 1.3rem;
+  min-height: 36px;
+  margin-bottom: 20px;
+  color: #f1f5f9;
+  letter-spacing: 0.05em;
+}
+
+.dialpad-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.dialpad-key {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.dialpad-key:active {
+  background: #334155;
+}
+
+.dialpad-actions {
+  display: flex;
+  gap: 24px;
+  margin-top: auto;
+  margin-bottom: 12px;
+}
+
+/* ---- Buttons ---- */
+.btn {
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-round {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  font-size: 1.4rem;
+}
+
+.btn-call {
+  background: #22c55e;
+}
+
+.btn-danger {
+  background: #ef4444;
+}
+
+.btn-wide {
+  padding: 12px 24px;
+  border-radius: 24px;
+  margin-top: 24px;
+}
+
+/* ---- Call status screens ---- */
+.call-status-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.call-avatar {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.call-avatar-ringing {
+  animation: pulse 1s infinite;
+}
+
+.call-avatar-active {
+  animation: none;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+.call-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.call-subtitle {
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.call-timer {
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 8px;
+}
+
+.incoming-actions {
+  display: flex;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.call-summary {
+  width: 100%;
+  padding: 0 8px;
+}
+
+.call-summary-note {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+/* ---- In-call (receiver) ---- */
+.in-call-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* ---- Risk meter ---- */
+.risk-meter {
+  width: 100%;
+  margin: 12px 0;
+}
+
+.risk-meter-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+}
+
+.risk-score {
+  color: #94a3b8;
+}
+
+.risk-bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #1e293b;
+  overflow: hidden;
+}
+
+.risk-bar-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.risk-bar-low {
+  background: #22c55e;
+}
+
+.risk-bar-warning {
+  background: #eab308;
+}
+
+.risk-bar-critical {
+  background: #ef4444;
+}
+
+.risk-meter-label {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-top: 4px;
+  text-align: left;
+}
+
+/* ---- Transcript feed ---- */
+.transcript-feed {
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  text-align: left;
+  margin: 8px 0;
+  padding-right: 4px;
+}
+
+.transcript-empty {
+  color: #475569;
+  font-size: 0.8rem;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.transcript-line {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.transcript-timestamp {
+  font-size: 0.65rem;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.transcript-text {
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
