@@ -1,7 +1,7 @@
 import os
 import warnings
 import json
-
+from huggingface_hub import InferenceClient # Import InferenceClient
 from openai import OpenAI
 
 # Suppress minor warnings for cleaner console output
@@ -82,6 +82,87 @@ class RouterScamAnalyzer:
 
         return round(self.running_score, 2), top_label
 
+class BartLargeMNLIScamAnalyzer:
+    """Stateful context analyzer using only facebook/bart-large-mnli for hyper-sensitive detection."""
+    def __init__(self, alpha=0.7, max_buffer_words=500):
+        # Model is facebook/bart-large-mnli
+        self.model_id = "facebook/bart-large-mnli"
+        print(f"Loading {self.model_id} using InferenceClient...")
+
+        # Initialize InferenceClient using the provided API key
+        self.inference_client = InferenceClient(
+            provider="hf-inference",
+            api_key=os.getenv('hf_token'), # Using the hardcoded token from cell 3YaM97h_YdbA
+        )
+
+        # Tuned labels to be highly sensitive to the very first line ("illegal activity")
+        # as well as the progression into digital arrest.
+        self.candidate_labels = [
+            "illegal activity accusation",
+            "digital arrest threat",
+            "financial extortion",
+            "normal safe conversation",
+            "genuine law enforcement warning"
+        ]
+        self.scam_labels = [
+            "illegal activity accusation",
+            "digital arrest threat",
+            "financial extortion"
+        ]
+
+        self.running_score = 0.0
+        self.full_transcript_buffer = []
+        self.alpha = alpha
+        self.max_buffer_words = max_buffer_words
+
+    def process_chunk(self, new_chunk_text):
+        if not new_chunk_text.strip():
+            return self.running_score
+
+        # 1. Update text buffer
+        self.full_transcript_buffer.append(new_chunk_text.strip())
+        combined_context = " ".join(self.full_transcript_buffer)
+
+        words = combined_context.split()
+        if len(words) > self.max_buffer_words:
+            combined_context = " ".join(words[-self.max_buffer_words:])
+
+        # Use InferenceClient for zero-shot classification
+        classification_output = self.inference_client.zero_shot_classification(
+            combined_context,
+            candidate_labels=self.candidate_labels,
+            model=self.model_id,
+            multi_label=False
+        )
+
+        # The output from InferenceClient is a list of objects with label and score
+        # Convert to a dictionary for easier processing if needed, or iterate directly
+        # For zero-shot classification, it returns a list of dictionaries with 'label' and 'score'
+        # We need to adapt to the output format: List[TextClassificationOutputElement]
+        # where each element has 'label' and 'score'
+
+        # 3. Calculate current chunk raw probability
+        current_context_risk = 0.0
+        for item in classification_output:
+            if item.label in self.scam_labels:
+                current_context_risk += item.score
+
+        current_risk_scaled = current_context_risk * 100
+
+        if self.running_score == 0.0:
+            self.running_score = current_risk_scaled
+        else:
+            # Latch-and-hold logic:
+            # If current risk is higher, adapt quickly.
+            # If current risk drops, decay very slowly to remember the severe threat.
+            if current_risk_scaled > self.running_score:
+                self.running_score = (self.alpha * current_risk_scaled) + ((1 - self.alpha) * self.running_score)
+            else:
+                self.running_score = max(current_risk_scaled, self.running_score * 0.95)
+
+        # The InferenceClient returns an ordered list, so the top label is the first item's label.
+        return round(self.running_score, 2), classification_output[0].label
+
 
 # ==========================================
 # MAIN EXECUTION
@@ -101,7 +182,8 @@ def _get_analyzer():
                 "access token with Router API access before starting the server."
             )
         print(f"Configuring HF Router API scam analyzer...")
-        _analyzer = RouterScamAnalyzer(hf_token=hf_token)
+        # _analyzer = RouterScamAnalyzer(hf_token=hf_token)
+        _analyzer = BartLargeMNLIScamAnalyzer()
     return _analyzer
 
 
