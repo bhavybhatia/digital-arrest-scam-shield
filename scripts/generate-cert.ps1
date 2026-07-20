@@ -25,7 +25,21 @@ if ($env:EXTRA_SAN) {
 $San = $SanList -join ","
 Write-Host "Generating self-signed cert with SAN: $San"
 
-& openssl req -x509 -newkey rsa:2048 -nodes `
+$OpenSsl = Get-Command openssl -ErrorAction SilentlyContinue
+if ($OpenSsl) {
+    $OpenSslPath = $OpenSsl.Source
+} else {
+    $Fallbacks = @(
+        "$env:ProgramFiles\Git\usr\bin\openssl.exe",
+        "$env:ProgramFiles\Git\mingw64\bin\openssl.exe"
+    )
+    $OpenSslPath = $Fallbacks | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $OpenSslPath) {
+        throw "openssl not found on PATH and no bundled Git openssl.exe was located. Install OpenSSL or Git for Windows."
+    }
+}
+
+& $OpenSslPath req -x509 -newkey rsa:2048 -nodes `
     -keyout $Key -out $Cert `
     -days 825 `
     -subj "/CN=digital-arrest-scam-shield" `
