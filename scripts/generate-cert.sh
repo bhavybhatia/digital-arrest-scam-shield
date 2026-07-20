@@ -70,12 +70,37 @@ if [ -n "$EXTRA_SAN" ]; then
 fi
 
 echo "Generating self-signed cert with SAN: $SAN"
+
+# Some Windows shells (plain cmd/PowerShell invoked via bash, or a Git Bash
+# whose PATH got trimmed) don't have openssl on PATH even though Git for
+# Windows ships one alongside bash itself. Fall back to that copy so this
+# script keeps working without requiring a separate OpenSSL install.
+if command -v openssl >/dev/null 2>&1; then
+  OPENSSL_BIN="openssl"
+else
+  for candidate in \
+    "/usr/bin/openssl" \
+    "/mingw64/bin/openssl" \
+    "/c/Program Files/Git/usr/bin/openssl.exe" \
+    "/c/Program Files/Git/mingw64/bin/openssl.exe"; do
+    if [ -x "$candidate" ]; then
+      OPENSSL_BIN="$candidate"
+      break
+    fi
+  done
+  if [ -z "$OPENSSL_BIN" ]; then
+    echo "ERROR: openssl not found on PATH and no bundled Git openssl was located." >&2
+    echo "Install OpenSSL or Git for Windows, then re-run." >&2
+    exit 1
+  fi
+fi
+
 # The doubled leading slash on -subj is a Git-Bash-on-Windows workaround:
 # MSYS mangles a single leading "/" into a Windows path (breaking openssl's
 # "/CN=..." syntax); "//CN=..." survives that conversion intact. It's a
 # no-op on real Linux/macOS bash (the GCP Debian target), where paths are
 # never rewritten.
-openssl req -x509 -newkey rsa:2048 -nodes \
+"$OPENSSL_BIN" req -x509 -newkey rsa:2048 -nodes \
   -keyout "$KEY" -out "$CERT" \
   -days 825 \
   -subj "//CN=digital-arrest-scam-shield" \

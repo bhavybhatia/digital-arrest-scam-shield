@@ -22,8 +22,12 @@ try {
     python -m venv scam_shield_env
     .\scam_shield_env\Scripts\Activate.ps1
 
-    # --- 3. Python dependencies (requirements.txt pins the CPU-only torch build
-    #         itself via --extra-index-url, so this is the only install needed) ---
+    # --- 3. Python dependencies (torch/torchaudio/torchvision first, as one
+    #         resolved set from the CPU-only wheel index - so pip never pulls
+    #         the ~2GB CUDA build, and torchaudio/torchvision can't end up
+    #         mismatched with whatever torch version pip would otherwise pick
+    #         from PyPI while resolving requirements.txt) ---
+    pip install --no-cache-dir torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
     pip install --no-cache-dir -r requirements.txt
 
     # --- 4. TLS certificate, shared by the backend and both Vite dev servers ---

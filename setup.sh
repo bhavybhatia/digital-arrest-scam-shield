@@ -161,12 +161,15 @@ echo "Virtual environment activated ($VENV_ACTIVATE)"
 PY="python"
 
 # =====================================================================
-# 3. Python dependencies (CPU-only torch first, so pip never pulls the
-#    ~2GB CUDA build)
+# 3. Python dependencies (torch/torchaudio/torchvision first, as one
+#    resolved set from the CPU-only wheel index - so pip never pulls the
+#    ~2GB CUDA build, and torchaudio/torchvision can't end up mismatched
+#    with whatever torch version pip would otherwise pick from PyPI while
+#    resolving requirements.txt)
 # =====================================================================
 echo "==> Installing Python dependencies..."
 $PY -m pip install --upgrade pip
-pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+pip install --no-cache-dir torch torchaudio torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install --no-cache-dir -r requirements.txt
 
 # --- 3.1 TLS certificate, shared by the backend and both Vite dev servers ---
