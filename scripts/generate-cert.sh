@@ -33,7 +33,21 @@ fi
 
 SAN="DNS:localhost,IP:127.0.0.1"
 
-for ip in $(hostname -I 2>/dev/null || true); do
+# LAN IP detection differs by OS:
+#   Linux: `hostname -I` lists all IPs directly.
+#   macOS: BSD `hostname` has no -I flag, so pull the IP off the active
+#          interface instead (en0 = Wi-Fi, en1 = Ethernet on most Macs).
+LAN_IPS=""
+if command -v ipconfig >/dev/null 2>&1 && [ "$(uname -s)" = "Darwin" ]; then
+  for iface in en0 en1 en2; do
+    ip="$(ipconfig getifaddr "$iface" 2>/dev/null || true)"
+    [ -n "$ip" ] && LAN_IPS="$LAN_IPS $ip"
+  done
+else
+  LAN_IPS="$(hostname -I 2>/dev/null || true)"
+fi
+
+for ip in $LAN_IPS; do
   SAN="$SAN,IP:$ip"
 done
 
