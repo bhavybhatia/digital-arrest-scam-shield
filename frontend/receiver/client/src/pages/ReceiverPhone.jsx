@@ -2,9 +2,13 @@ import { useEffect, useRef } from "react";
 import PhoneFrame from "../components/PhoneFrame.jsx";
 import RiskMeter from "../components/RiskMeter.jsx";
 import TranscriptFeed from "../components/TranscriptFeed.jsx";
+import AudioDeviceSelect from "../components/AudioDeviceSelect.jsx";
 import { useCallSession } from "../hooks/useCallSession.js";
 import { useTranscript } from "../hooks/useTranscript.js";
 import { useElapsedTime } from "../hooks/useElapsedTime.js";
+import { useAudioDevices } from "../hooks/useAudioDevices.js";
+import { useWebRTCCall } from "../hooks/useWebRTCCall.js";
+import { useAudioStreamer } from "../hooks/useAudioStreamer.js";
 import { callApi } from "../api/client.js";
 import { isSamePhoneNumber } from "../utils/phoneNumber.js";
 
@@ -17,6 +21,30 @@ export default function ReceiverPhone() {
   const status = isForMe ? session.status : "idle";
   const elapsed = useElapsedTime(isForMe ? session.accepted_at : null);
   const { chunks, latest, reset } = useTranscript(status === "active", 1500);
+
+  const audioDevices = useAudioDevices();
+  const audioRef = useRef(null);
+  const { remoteStream, connectionState } = useWebRTCCall({
+    active: isForMe && status === "active",
+    role: "receiver",
+    sessionId: isForMe ? session?.session_id : null,
+    deviceId: audioDevices.selectedDeviceId,
+  });
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.srcObject = remoteStream || null;
+  }, [remoteStream]);
+
+  // Separate backend-only leg: mixes this browser's mic with the caller's
+  // remote WebRTC track and streams it to /ws/audio for Whisper
+  // transcription + scam scoring. Doesn't affect the caller<->receiver
+  // WebRTC call set up above by useWebRTCCall.
+  useAudioStreamer({
+    active: isForMe && status === "active",
+    sessionId: isForMe ? session?.session_id : null,
+    remoteStream,
+    deviceId: audioDevices.selectedDeviceId,
+  });
 
   // This component never unmounts between calls, so useTranscript's state
   // (chunks, the polling "since" cursor) would otherwise keep carrying over
@@ -77,6 +105,9 @@ export default function ReceiverPhone() {
           <div className="call-title">In call</div>
           <div className="call-subtitle">{session.from_number}</div>
           <div className="call-timer">{elapsed}</div>
+          {connectionState !== "connected" && (
+            <div className="call-subtitle">Audio: {connectionState}…</div>
+          )}
 
           <RiskMeter score={latest.score} label={latest.label} risk={latest.risk} />
 
@@ -110,6 +141,14 @@ export default function ReceiverPhone() {
       <div className="call-status-screen">
         <div className="call-title">Waiting for calls…</div>
         <div className="call-subtitle">Your number: {OWN_NUMBER}</div>
+        <AudioDeviceSelect
+          devices={audioDevices.devices}
+          selectedDeviceId={audioDevices.selectedDeviceId}
+          onChange={audioDevices.setSelectedDeviceId}
+          permission={audioDevices.permission}
+          onRequestPermission={audioDevices.requestPermission}
+          error={audioDevices.error}
+        />
       </div>
     );
   };
@@ -118,6 +157,7 @@ export default function ReceiverPhone() {
     <div className="phone-app">
       <div className="phone-app-header">Receiver</div>
       {content()}
+      <audio ref={audioRef} autoPlay />
     </div>
   );
 

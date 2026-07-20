@@ -5,20 +5,23 @@ set -e  # exit immediately if any setup command fails
 trap 'echo ""; echo "Stopping all services..."; kill $(jobs -p) 2>/dev/null' EXIT INT TERM
 
 # --- 1. System-level dependencies (needed to build pyaudio's C extension) ---
-sudo apt update
-sudo apt install -y portaudio19-dev python3-dev
+#sudo apt update
+#sudo apt install -y portaudio19-dev python3-dev
 
 # --- 2. Python virtual environment ---
-python3 -m venv scam_shield_env
+python -m venv scam_shield_env
 source scam_shield_env/bin/activate
 
 # --- 3. Python dependencies (CPU-only torch first, so pip never pulls the ~2GB CUDA build) ---
 pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 pip install --no-cache-dir -r requirements.txt
 
-# --- 4. Backend (runs in background, otherwise the script hangs here forever) ---
+# --- 4. TLS certificate, shared by the backend and both Vite dev servers ---
+bash scripts/generate-cert.sh
+
+# --- 5. Backend (runs in background, otherwise the script hangs here forever) ---
 cd backend
-python3 app.py &
+python app.py &
 BACKEND_PID=$!
 cd ..
 echo "Backend started (PID $BACKEND_PID)"

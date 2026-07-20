@@ -3,14 +3,15 @@ import sys
 import queue
 import threading
 import numpy as np
-import pyaudio
-import whisper
 from docx import Document
 from datetime import datetime
 
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
+# Audio arrives as 16-bit mono PCM chunks pushed onto audio_queue by the
+# WebSocket receiver in app.py (captured client-side in the browser) rather
+# than read from a local microphone here. RATE/CHUNK_DURATION still define
+# the expected chunk shape: app.py uses them to size the "full" chunk in
+# bytes so it can tell a final, shorter chunk (call ended mid-recording)
+# from a normal one.
 RATE = 16000
 CHUNK_DURATION = 10   # seconds per chunk
 OUTPUT_PATH = "transcription.docx"
@@ -18,6 +19,32 @@ OUTPUT_PATH = "transcription.docx"
 audio_queue = queue.Queue()
 stop_event = threading.Event()
 doc_lock = threading.Lock()
+
+CHUNK_BYTES = RATE * 2 * CHUNK_DURATION  # 16-bit mono PCM
+
+
+class ChunkAssembler:
+    """Buffers raw PCM16 bytes streamed in over the network into fixed
+    ~CHUNK_DURATION-second pieces, mirroring what the old microphone-based
+    record_audio() used to hand to audio_queue directly."""
+
+    def __init__(self):
+        self._buffer = bytearray()
+
+    def add(self, raw_bytes):
+        self._buffer.extend(raw_bytes)
+        chunks = []
+        while len(self._buffer) >= CHUNK_BYTES:
+            chunks.append(bytes(self._buffer[:CHUNK_BYTES]))
+            del self._buffer[:CHUNK_BYTES]
+        return chunks
+
+    def flush(self):
+        if not self._buffer:
+            return None
+        chunk = bytes(self._buffer)
+        self._buffer = bytearray()
+        return chunk
 
 
 def init_doc():
@@ -42,12 +69,17 @@ def _load_or_create_doc():
         return doc
 
 
-def append_to_doc(timestamp, text, note=None):
+def append_to_doc(timestamp, text, note=None, risk_score=None, risk_label=None, risk_status=None):
     with doc_lock:
         doc = _load_or_create_doc()
         heading = f"{timestamp}  ({note})" if note else timestamp
         doc.add_paragraph(heading, style="Intense Quote")
         doc.add_paragraph(text)
+        if risk_status is not None:
+            risk_line = f"Risk: {risk_status}  ({risk_score}/100)"
+            if risk_label:
+                risk_line += f"  — intent: {risk_label}"
+            doc.add_paragraph(risk_line, style="Intense Quote")
         doc.save(OUTPUT_PATH)
 
 
@@ -60,28 +92,6 @@ def mark_call_event(label):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         doc.add_heading(f"— {label} — {timestamp} —", level=2)
         doc.save(OUTPUT_PATH)
-
-
-def record_audio():
-    p = pyaudio.PyAudio()
-    stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE,
-                    input=True, frames_per_buffer=CHUNK)
-    frames_per_chunk = int(RATE / CHUNK * CHUNK_DURATION)
-
-    while not stop_event.is_set():
-        frames = []
-        for _ in range(frames_per_chunk):
-            if stop_event.is_set():
-                break
-            frames.append(stream.read(CHUNK, exception_on_overflow=False))
-        if frames:
-            is_partial = len(frames) < frames_per_chunk
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            audio_queue.put((timestamp, b''.join(frames), is_partial))
-
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
 
 
 def transcribe_audio(model, on_chunk=None):
@@ -111,10 +121,18 @@ def transcribe_audio(model, on_chunk=None):
             if text:
                 print(f"[{timestamp}] >> {text}")
                 sys.stdout.flush()
-                append_to_doc(timestamp, text, note=note)
-                print(f"[{timestamp}] Appended to {OUTPUT_PATH}")
+
+                risk_score = risk_label = risk_status = None
                 if on_chunk:
-                    on_chunk(timestamp, text)
+                    chunk_result = on_chunk(timestamp, text)
+                    if chunk_result:
+                        risk_score, risk_label, risk_status = chunk_result
+
+                append_to_doc(
+                    timestamp, text, note=note,
+                    risk_score=risk_score, risk_label=risk_label, risk_status=risk_status,
+                )
+                print(f"[{timestamp}] Appended to {OUTPUT_PATH}")
             else:
                 print(f"[{timestamp}] No speech detected in chunk.")
         except Exception as exc:
@@ -123,31 +141,3 @@ def transcribe_audio(model, on_chunk=None):
             # would silently stop all further transcription for the rest of
             # the call with no visible error to the user.
             print(f"[{timestamp}] Chunk processing failed: {exc}")
-
-
-if __name__ == "__main__":
-    # Step 1: Check / create docx
-    init_doc()
-
-    # Load model
-    print("\nLoading Whisper model (tiny)...")
-    model = whisper.load_model("tiny")
-
-    print("\nLive transcription started. Speak freely. Press Ctrl+C to stop.\n")
-
-    recorder = threading.Thread(target=record_audio, daemon=True)
-    transcriber = threading.Thread(target=transcribe_audio, args=(model,), daemon=True)
-
-    recorder.start()
-    transcriber.start()
-
-    try:
-        while recorder.is_alive():
-            recorder.join(timeout=0.5)
-    except KeyboardInterrupt:
-        print("\nStopping... finishing pending transcriptions.")
-        stop_event.set()
-
-    recorder.join()
-    transcriber.join()
-    print(f"\nDone. All transcripts saved to {OUTPUT_PATH}")

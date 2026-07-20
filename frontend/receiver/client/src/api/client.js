@@ -47,3 +47,20 @@ export const callApi = {
 
   getTranscript: (since = 0) => request(`/api/call/transcript?since=${since}`),
 };
+
+// WebRTC signaling mailboxes, scoped to the active session_id — each side
+// posts its own SDP/ICE messages and polls the other side's mailbox. The
+// browser decides nothing about *how* the call connects; this is just
+// transport for whatever useWebRTCCall produces.
+export const signalApi = {
+  send: (sessionId, role, type, data) =>
+    request("/api/call/signal", {
+      method: "POST",
+      body: JSON.stringify({ session_id: sessionId, role, type, data }),
+    }),
+
+  poll: (sessionId, from, since = 0) =>
+    request(
+      `/api/call/signal?session_id=${encodeURIComponent(sessionId)}&from=${from}&since=${since}`
+    ),
+};

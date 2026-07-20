@@ -20,6 +20,8 @@ from datetime import datetime
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_sock import Sock
+from simple_websocket import ConnectionClosed
 
 # Windows consoles default to a codepage (e.g. cp1252) that can't encode the
 # arrow/emoji characters digital_scam_shield.py prints (e.g. "►", "🔴"). An
@@ -34,11 +36,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from realtime_transcribe import (  # noqa: E402
     init_doc,
-    record_audio,
     transcribe_audio,
     audio_queue,
     stop_event,
     mark_call_event,
+    ChunkAssembler,
     OUTPUT_PATH,
 )
 from digital_scam_shield import scam_detector, preload as preload_scam_model  # noqa: E402
@@ -49,11 +51,13 @@ app = Flask(__name__)
 # caller/client (Vite dev, port 5173) and receiver/client (Vite dev, port
 # 5174) call this API directly — there is no Node proxy layer in between.
 CORS(app, origins=[
-    re.compile(r"^http?://.*:5173$"),
-    re.compile(r"^http?://.*:5174$"),
-    re.compile(r"^http?://.*:5175$"),
-    re.compile(r"^http?://.*:5176$"),
+    "*",
+    re.compile(r"^https?://.*:5173$"),
+    re.compile(r"^https?://.*:5174$"),
+    re.compile(r"^https?://.*:5175$"),
+    re.compile(r"^https?://.*:5176$"),
 ])
+sock = Sock(app)
 
 # ---------------------------------------------------------------------------
 # Model loading (once, at startup, before any audio thread starts — loading
@@ -75,8 +79,8 @@ init_doc()
 state_lock = threading.Lock()
 log_lock = threading.Lock()
 session_lock = threading.Lock()
+signal_lock = threading.Lock()
 
-recorder_thread = None
 transcriber_thread = None
 is_recording = False
 transcript_log = []  # [{index, timestamp, text, scam_score, scam_label, risk_status}]
@@ -91,9 +95,29 @@ session = {
     "ended_at": None,
 }
 
+# WebRTC signaling mailboxes for the *current* session_id only — each side
+# posts its own SDP/ICE messages and polls the other side's list with a
+# "since" cursor, mirroring the transcript polling pattern above. Cleared
+# whenever a new call starts (dial) or the session resets, so stale
+# candidates/SDPs from a finished call can never leak into the next one.
+signal_state = {
+    "session_id": None,
+    "caller": [],    # [{index, type: "offer"|"ice", data}]
+    "receiver": [],  # [{index, type: "answer"|"ice", data}]
+}
+
+
+def _reset_signal_state_locked(session_id):
+    signal_state.update({"session_id": session_id, "caller": [], "receiver": []})
+
 
 def _on_chunk(timestamp, text):
-    """Callback invoked by transcribe_audio() for every finished chunk."""
+    """Callback invoked by transcribe_audio() for every finished chunk.
+
+    Returns (score, top_label, risk_status) so transcribe_audio() can write
+    the same risk assessment shown on the receiver screen into
+    transcription.docx, instead of the docx only ever holding raw text.
+    """
     score, top_label, risk_status = scam_detector(text)
     with log_lock:
         transcript_log.append({
@@ -104,10 +128,16 @@ def _on_chunk(timestamp, text):
             "scam_label": top_label,
             "risk_status": risk_status,
         })
+    return score, top_label, risk_status
 
 
 def _start_recording():
-    global recorder_thread, transcriber_thread, is_recording
+    """Arms the transcriber for a new call. Audio itself no longer comes
+    from a local recorder thread — it's pushed onto audio_queue by
+    ws_audio() as the receiver's browser streams PCM frames over
+    /ws/audio, so there is nothing to start on that side beyond the
+    transcriber thread that drains the queue."""
+    global transcriber_thread, is_recording
     with state_lock:
         if is_recording:
             return
@@ -115,14 +145,12 @@ def _start_recording():
         while not audio_queue.empty():
             audio_queue.get_nowait()
 
-        recorder_thread = threading.Thread(target=record_audio, daemon=True)
         transcriber_thread = threading.Thread(
             target=transcribe_audio,
             args=(whisper_model,),
             kwargs={"on_chunk": _on_chunk},
             daemon=True,
         )
-        recorder_thread.start()
         transcriber_thread.start()
         is_recording = True
 
@@ -135,8 +163,6 @@ def _stop_recording():
         if not is_recording:
             return
         stop_event.set()
-        if recorder_thread:
-            recorder_thread.join(timeout=10)
         if transcriber_thread:
             transcriber_thread.join(timeout=30)
         is_recording = False
@@ -171,6 +197,9 @@ def index():
             "POST /api/call/reset": "clear a finished call back to idle",
             "GET /api/call/session": "poll current call session state",
             "GET /api/call/transcript?since=<n>": "poll transcript + scam risk",
+            "POST /api/call/signal": "post a WebRTC offer/answer/ice message",
+            "GET /api/call/signal?session_id=&from=&since=<n>": "poll the other side's WebRTC messages",
+            "WS /ws/audio?session_id=": "receiver_ui streams raw PCM16 call audio for transcription",
         },
     })
 
@@ -191,8 +220,9 @@ def dial():
         with log_lock:
             transcript_log.clear()
 
+        new_session_id = str(uuid.uuid4())
         session.update({
-            "session_id": str(uuid.uuid4()),
+            "session_id": new_session_id,
             "from_number": from_number,
             "to_number": to_number,
             "status": "ringing",
@@ -201,6 +231,9 @@ def dial():
             "ended_at": None,
         })
         current = dict(session)
+
+    with signal_lock:
+        _reset_signal_state_locked(new_session_id)
 
     return jsonify(current)
 
@@ -271,6 +304,8 @@ def reset():
     with session_lock:
         _reset_session_locked()
         current = dict(session)
+    with signal_lock:
+        _reset_signal_state_locked(None)
     return jsonify(current)
 
 
@@ -304,5 +339,99 @@ def get_transcript():
     })
 
 
+@app.post("/api/call/signal")
+def post_signal():
+    data = request.get_json(force=True) or {}
+    session_id = data.get("session_id")
+    role = data.get("role")
+    msg_type = data.get("type")
+    payload = data.get("data")
+
+    if role not in ("caller", "receiver"):
+        return jsonify({"error": "role must be 'caller' or 'receiver'"}), 400
+    if msg_type not in ("offer", "answer", "ice"):
+        return jsonify({"error": "type must be 'offer', 'answer' or 'ice'"}), 400
+
+    with signal_lock:
+        if signal_state["session_id"] != session_id:
+            return jsonify({"error": "no matching call for this session_id"}), 409
+        mailbox = signal_state[role]
+        mailbox.append({"index": len(mailbox), "type": msg_type, "data": payload})
+
+    return jsonify({"ok": True})
+
+
+@app.get("/api/call/signal")
+def get_signal():
+    session_id = request.args.get("session_id")
+    from_role = request.args.get("from")
+    since = request.args.get("since", default=0, type=int)
+
+    if from_role not in ("caller", "receiver"):
+        return jsonify({"error": "from must be 'caller' or 'receiver'"}), 400
+
+    with signal_lock:
+        if signal_state["session_id"] != session_id:
+            return jsonify({"messages": [], "total": 0})
+        mailbox = signal_state[from_role]
+        messages = mailbox[since:]
+        total = len(mailbox)
+
+    return jsonify({"messages": messages, "total": total})
+
+
+@sock.route("/ws/audio")
+def ws_audio(ws):
+    """Receives raw 16-bit mono PCM @ RATE Hz streamed from the receiver's
+    browser (its own mic mixed with the caller's remote WebRTC track) and
+    feeds it into the same audio_queue the old microphone-based
+    record_audio() used to fill directly, in ~CHUNK_DURATION-second pieces.
+
+    Chunking (not just relaying raw frames 1:1) happens here rather than in
+    the browser because the browser sends small, irregularly-sized frames as
+    they're captured; transcribe_audio() expects roughly CHUNK_DURATION of
+    audio per item so Whisper has enough context per call to transcribe().
+    """
+    session_id = request.args.get("session_id")
+    with session_lock:
+        valid = session["session_id"] == session_id and session["status"] == "active"
+    if not valid:
+        ws.close()
+        return
+
+    assembler = ChunkAssembler()
+    try:
+        while True:
+            data = ws.receive()
+            if data is None or not isinstance(data, (bytes, bytearray)):
+                break
+            for chunk in assembler.add(data):
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                audio_queue.put((timestamp, chunk, False))
+    except ConnectionClosed:
+        pass
+    finally:
+        leftover = assembler.flush()
+        if leftover:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            audio_queue.put((timestamp, leftover, True))
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5005, threaded=True)
+    # A persisted, shared self-signed cert (see scripts/generate-cert.*) —
+    # NOT ssl_context="adhoc". Adhoc mints a brand-new ephemeral cert every
+    # process start, which silently invalidates any "proceed anyway" a
+    # phone browser had already clicked through the moment the backend
+    # restarts, and (like the frontend's old basicSsl plugin) never carried
+    # a Subject Alternative Name for the actual IP the phone connects to —
+    # which browsers reject outright as a hostname mismatch, no warning to
+    # click through at all. That combination is what made the caller UI
+    # show "Backend unreachable" even with the process genuinely running.
+    cert_path = os.path.join(os.path.dirname(__file__), "..", "certs", "cert.pem")
+    key_path = os.path.join(os.path.dirname(__file__), "..", "certs", "key.pem")
+    if not (os.path.exists(cert_path) and os.path.exists(key_path)):
+        raise SystemExit(
+            "TLS certificate not found. Run scripts/generate-cert.sh "
+            "(or scripts/generate-cert.ps1 on Windows) first, or `bash setup.sh` / `.\\setup.ps1`."
+        )
+    app.run(host="0.0.0.0", port=5005, threaded=True, ssl_context=(cert_path, key_path))

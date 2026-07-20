@@ -358,6 +358,49 @@ body {
   text-align: left;
 }
 
+/* ---- Audio device select ---- */
+.audio-device-select {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.audio-device-label {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.audio-device-dropdown {
+  width: 100%;
+  max-width: 240px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+}
+
+.audio-device-permission-btn {
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.audio-device-error {
+  color: #f87171;
+  font-size: 0.7rem;
+  margin-top: 4px;
+  text-align: center;
+}
+
 /* ---- Transcript feed ---- */
 .transcript-feed {
   width: 100%;
