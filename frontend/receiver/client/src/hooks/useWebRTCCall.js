@@ -1,7 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { signalApi } from "../api/client";
 
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+// STUN alone can't traverse symmetric/carrier-grade NAT, which is common
+// when caller and receiver are on separate public networks (e.g. two
+// phones on mobile data hitting a GCP-hosted deployment) rather than the
+// same LAN. A TURN relay is required for that case. VITE_TURN_DOMAIN +
+// VITE_TURN_API_KEY (from .env.local, see .env.local.example) are Metered's
+// account credentials for *minting* short-lived TURN username/password
+// pairs via their REST API - they are not a TURN username/credential
+// themselves, so servers must be fetched fresh per call rather than
+// hardcoded. Falls back to STUN-only if unset or the fetch fails.
+async function fetchIceServers() {
+  const fallback = [{ urls: "stun:stun.l.google.com:19302" }];
+  const domain = import.meta.env.VITE_TURN_DOMAIN;
+  const apiKey = import.meta.env.VITE_TURN_API_KEY;
+  if (!domain || !apiKey) return fallback;
+
+  try {
+    const res = await fetch(
+      `https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`
+    );
+    if (!res.ok) return fallback;
+    const servers = await res.json();
+    return Array.isArray(servers) && servers.length ? servers : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
 const POLL_MS = 700;
 
 /**
@@ -89,7 +114,12 @@ export function useWebRTCCall({ active, role, sessionId, deviceId }) {
           return;
         }
 
-        pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+        const iceServers = await fetchIceServers();
+        if (cancelled) {
+          localStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        pc = new RTCPeerConnection({ iceServers });
         localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
         pc.ontrack = (event) => {

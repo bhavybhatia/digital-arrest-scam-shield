@@ -6,3 +6,4 @@
 __pycache__
 scam_shield_env
 scam_shield.zip
+.env.local
